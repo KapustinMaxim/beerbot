@@ -58,6 +58,19 @@ class FitnessBot:
             )
         ''')
 
+        # Создание таблицы для достижений
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                achievement_type TEXT NOT NULL,
+                milestone INTEGER NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, achievement_type, milestone)
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -84,6 +97,65 @@ class FitnessBot:
         )
         conn.commit()
         conn.close()
+
+    def check_and_add_achievement(self, user_id: int, username: str, achievement_type: str, current_total: int):
+        """Проверка и добавление достижения"""
+        db_path = os.getenv("DATABASE_PATH", "fitness_bot.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Определяем пороги достижений
+        milestones = {
+            'pushups': [100, 250, 500, 1000, 2500, 5000, 10000],
+            'beer': [1000, 2500, 5000, 10000, 25000, 50000]  # в мл
+        }
+
+        if achievement_type not in milestones:
+            conn.close()
+            return []
+
+        new_achievements = []
+
+        for milestone in milestones[achievement_type]:
+            if current_total >= milestone:
+                try:
+                    cursor.execute(
+                        "INSERT INTO achievements (user_id, username, achievement_type, milestone) VALUES (?, ?, ?, ?)",
+                        (user_id, username, achievement_type, milestone)
+                    )
+                    new_achievements.append(milestone)
+                except sqlite3.IntegrityError:
+                    # Достижение уже существует
+                    continue
+
+        conn.commit()
+        conn.close()
+        return new_achievements
+
+    def get_achievement_message(self, achievement_type: str, milestone: int):
+        """Получение сообщения о достижении"""
+        messages = {
+            'pushups': {
+                100: "🎉 Поздравляем! Вы достигли 100 отжиманий! Отличное начало! 💪",
+                250: "🔥 Невероятно! 250 отжиманий - вы на правильном пути! 🚀",
+                500: "🏆 ПОТРЯСАЮЩЕ! 500 отжиманий! Вы настоящий чемпион! 👑\n🎯 Продолжайте в том же духе!",
+                1000: "🥇 ЛЕГЕНДАРНО! 1000 отжиманий! Вы достигли мастерского уровня! ⚡",
+                2500: "🌟 ЭПИЧНО! 2500 отжиманий! Вы превзошли все ожидания! 🦾",
+                5000: "🔥 БОЖЕСТВЕННО! 5000 отжиманий! Вы - машина для отжиманий! 🤖",
+                10000: "👑 АБСОЛЮТНЫЙ ЧЕМПИОН! 10000 отжиманий! Вы покорили Олимп! 🏔️"
+            },
+            'beer': {
+                1000: "🍺 Литр пива выпит! Надеюсь, вы помните про отжимания! 😄",
+                2500: "🍻 2.5 литра! Время удвоить тренировки! 💪",
+                5000: "🍺 5 литров! Серьезные объемы! Баланс - это важно! ⚖️",
+                10000: "🍻 10 литров! Вы настоящий ценитель! Не забывайте про спорт! 🏃‍♂️",
+                25000: "🍺 25 литров! Впечатляющая статистика! 📊",
+                50000: "🍻 50 литров! Легендарный результат! 🏆"
+            }
+        }
+
+        return messages.get(achievement_type, {}).get(milestone,
+                                                      f"🎉 Достижение разблокировано: {milestone} {achievement_type}!")
 
     def get_user_stats(self, user_id: int):
         """Получение статистики пользователя"""
@@ -188,6 +260,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • /stats - моя статистика
 • /total - статистика всех пользователей
 
+🏆 Система достижений:
+• 100, 250, 500, 1000, 2500, 5000, 10000 отжиманий
+• Особые награды за важные рубежи!
+
 Пример: /pushup 50
     """
     await update.message.reply_text(welcome_text)
@@ -219,6 +295,9 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Получаем обновленную статистику
         stats = bot.get_user_stats(user_id)
 
+        # Проверяем достижения
+        new_achievements = bot.check_and_add_achievement(user_id, username, 'pushups', stats['pushups']['total'])
+
         response = f"""
 ✅ Записано {count} отжиманий!
 
@@ -228,6 +307,11 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
 
         await update.message.reply_text(response)
+
+        # Отправляем сообщения о новых достижениях
+        for achievement in new_achievements:
+            achievement_message = bot.get_achievement_message('pushups', achievement)
+            await update.message.reply_text(achievement_message)
 
     except ValueError:
         await update.message.reply_text("❌ Неверный формат! Введите число.\nПример: /pushup 50")
@@ -262,6 +346,9 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Получаем обновленную статистику
         stats = bot.get_user_stats(user_id)
 
+        # Проверяем достижения
+        new_achievements = bot.check_and_add_achievement(user_id, username, 'beer', stats['beer']['total'])
+
         response = f"""
 ✅ Записано {count} мл. пива!
 
@@ -271,6 +358,11 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
 
         await update.message.reply_text(response)
+
+        # Отправляем сообщения о новых достижениях
+        for achievement in new_achievements:
+            achievement_message = bot.get_achievement_message('beer', achievement)
+            await update.message.reply_text(achievement_message)
 
     except ValueError:
         await update.message.reply_text("❌ Неверный формат! Введите число.\nПример: /beer 2")
