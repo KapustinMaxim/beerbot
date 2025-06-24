@@ -47,7 +47,7 @@ class FitnessBot:
             )
         ''')
 
-        # Создание таблицы для пива
+        # Создание таблицы для мл. мл. пива
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS beer (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +184,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Доступные команды:
 • /pushup <число> - записать отжимания
-• /beer <число> - записать количество пива
+• /beer <число> - записать количество мл. мл. пива
 • /stats - моя статистика
 • /total - статистика всех пользователей
 
@@ -237,10 +237,10 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /beer для записи пива"""
+    """Команда /beer для записи мл. мл. пива"""
     try:
         if not context.args:
-            await update.message.reply_text("❌ Укажите количество пива!\nПример: /beer 2")
+            await update.message.reply_text("❌ Укажите количество мл. мл. пива!\nПример: /beer 2")
             return
 
         count = int(context.args[0])
@@ -251,7 +251,7 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Количество должно быть больше нуля!")
             return
         if count > 10000:
-            await update.message.reply_text("❌ Слишком много пива! Максимум 10 л. за раз.")
+            await update.message.reply_text("❌ Слишком много мл. мл. пива! Максимум 10 л. за раз.")
             return
 
         user_id = update.effective_user.id
@@ -263,7 +263,7 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stats = bot.get_user_stats(user_id)
 
         response = f"""
-✅ Записано {count} пива!
+✅ Записано {count} мл. мл. пива!
 
 📊 Статистика за день и неделю:
 🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
@@ -355,7 +355,7 @@ async def handle_unknown_command(update: Update, context: ContextTypes.DEFAULT_T
         if command.strip() == "/pushup":
             await update.message.reply_text("❌ Укажите количество отжиманий!\nПример: /pushup 50")
         elif command.strip() == "/beer":
-            await update.message.reply_text("❌ Укажите количество пива!\nПример: /beer 2")
+            await update.message.reply_text("❌ Укажите количество мл. мл. пива!\nПример: /beer 2")
         return
 
     # Для всех остальных неизвестных команд
