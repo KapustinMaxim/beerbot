@@ -47,7 +47,7 @@ class FitnessBot:
             )
         ''')
 
-        # Создание таблицы для мл. мл. пива
+        # Создание таблицы для мл. пива
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS beer (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +184,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Доступные команды:
 • /pushup <число> - записать отжимания
-• /beer <число> - записать количество мл. мл. пива
+• /beer <число> - записать количество мл. пива
 • /stats - моя статистика
 • /total - статистика всех пользователей
 
@@ -224,7 +224,7 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📊 Статистика за день и неделю:
 🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
-🍺 Пиво: {stats['beer']['today']} сегодня | {stats['beer']['week']} за неделю
+🍺 Пиво: {stats['beer']['today']} мл. сегодня | {stats['beer']['week']} мл. за неделю
         """
 
         await update.message.reply_text(response)
@@ -240,18 +240,18 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /beer для записи мл. мл. пива"""
     try:
         if not context.args:
-            await update.message.reply_text("❌ Укажите количество мл. мл. пива!\nПример: /beer 2")
+            await update.message.reply_text("❌ Укажите количество мл. пива!\nПример: /beer 2")
             return
 
         count = int(context.args[0])
         if count < 0:
-            await update.message.reply_text("❌ Количество не может быть отрицательным числом!")
+            await update.message.reply_text("❌ Количество мл. не может быть отрицательным числом!")
             return
         if count == 0:
-            await update.message.reply_text("❌ Количество должно быть больше нуля!")
+            await update.message.reply_text("❌ Количество мл. должно быть больше нуля!")
             return
         if count > 10000:
-            await update.message.reply_text("❌ Слишком много мл. мл. пива! Максимум 10 л. за раз.")
+            await update.message.reply_text("❌ Слишком много мл. пива! Максимум 10 л. за раз.")
             return
 
         user_id = update.effective_user.id
@@ -263,11 +263,11 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stats = bot.get_user_stats(user_id)
 
         response = f"""
-✅ Записано {count} мл. мл. пива!
+✅ Записано {count} мл. пива!
 
 📊 Статистика за день и неделю:
 🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
-🍺 Пиво: {stats['beer']['today']} сегодня | {stats['beer']['week']} за неделю
+🍺 Пиво: {stats['beer']['today']} мл. сегодня | {stats['beer']['week']} мл. за неделю
         """
 
         await update.message.reply_text(response)
@@ -294,9 +294,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
   • Всего: {stats['pushups']['total']}
 
 🍺 Пиво:
-  • Сегодня: {stats['beer']['today']}
-  • За неделю: {stats['beer']['week']}
-  • Всего: {stats['beer']['total']}
+  • Сегодня: {stats['beer']['today']} мл.
+  • За неделю: {stats['beer']['week']} мл.
+  • Всего: {stats['beer']['total']} мл.
         """
 
         await update.message.reply_text(response)
@@ -326,7 +326,7 @@ async def total_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             response += f"{i}. @{username}\n"
             response += f"   🔥 Отжимания: {stats['pushups']['total']} (неделя: {stats['pushups']['week']}, сегодня: {stats['pushups']['today']})\n"
-            response += f"   🍺 Пиво: {stats['beer']['total']} (неделя: {stats['beer']['week']}, сегодня: {stats['beer']['today']})\n\n"
+            response += f"   🍺 Пиво: {stats['beer']['total']} мл. (неделя: {stats['beer']['week']} мл., сегодня: {stats['beer']['today']} мл.)\n\n"
 
         # Разбиваем длинное сообщение на части, если необходимо
         if len(response) > 4096:
@@ -355,7 +355,7 @@ async def handle_unknown_command(update: Update, context: ContextTypes.DEFAULT_T
         if command.strip() == "/pushup":
             await update.message.reply_text("❌ Укажите количество отжиманий!\nПример: /pushup 50")
         elif command.strip() == "/beer":
-            await update.message.reply_text("❌ Укажите количество мл. мл. пива!\nПример: /beer 2")
+            await update.message.reply_text("❌ Укажите количество мл. пива!\nПример: /beer 2")
         return
 
     # Для всех остальных неизвестных команд
