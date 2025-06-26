@@ -58,6 +58,17 @@ class FitnessBot:
             )
         ''')
 
+        # Создание таблицы для мл. ничего
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS nothing (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                count INTEGER NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # Создание таблицы для достижений
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS achievements (
@@ -98,6 +109,18 @@ class FitnessBot:
         conn.commit()
         conn.close()
 
+    def add_nothing(self, user_id: int, username: str, count: int):
+        """Добавление записи о nothing"""
+        db_path = os.getenv("DATABASE_PATH", "fitness_bot.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO nothing (user_id, username, count) VALUES (?, ?, ?)",
+            (user_id, username, count)
+        )
+        conn.commit()
+        conn.close()
+
     def check_and_add_achievement(self, user_id: int, username: str, achievement_type: str, current_total: int):
         """Проверка и добавление достижения"""
         db_path = os.getenv("DATABASE_PATH", "fitness_bot.db")
@@ -107,6 +130,7 @@ class FitnessBot:
         # Определяем пороги достижений
         milestones = {
             'pushups': [100, 250, 500, 1000, 2500, 5000, 10000],
+            'nothing': [100, 250, 500, 1000, 2500, 5000, 10000],
             'beer': [1000, 2500, 5000, 10000, 25000, 50000]  # в мл
         }
 
@@ -143,6 +167,15 @@ class FitnessBot:
                 2500: "🌟 ЭПИЧНО! 2500 анжуманий! Давай Машина мочи 🦾",
                 5000: "🔥 ЕБАТЬ! 5000 анжуманий! БОГОПОДОБИЕ! 🤖",
                 10000: "👑 Пиздец ты конь! 10000 анжуманий! Вы покорили Олимп! 🏔️"
+            },
+            'nothing': {
+                100: "ну ок",
+                250: "🔥заебись заслужил",
+                500: "нууууууу окееееей ",
+                1000: "⚡",
+                2500: "ты че охуел ничего не делать?",
+                5000: "пивка хотябы випей",
+                10000: "спасибо Миша!🏔️"
             },
             'beer': {
                 1000: "🍺 Литр пива выпит! Э-э сайпал да давай отжимайся! 😄",
@@ -188,6 +221,27 @@ class FitnessBot:
         """, (user_id,))
         pushups_total = cursor.fetchone()[0] or 0
 
+        # Ничего
+        # За сегодня
+        cursor.execute("""
+                    SELECT SUM(count) FROM nothing 
+                    WHERE user_id = ? AND DATE(timestamp) = DATE('now')
+                """, (user_id,))
+        nothing_today = cursor.fetchone()[0] or 0
+
+        # За неделю
+        cursor.execute("""
+                    SELECT SUM(count) FROM nothing 
+                    WHERE user_id = ? AND timestamp >= ?
+                """, (user_id, week_ago))
+        nothing_week = cursor.fetchone()[0] or 0
+
+        # Всего
+        cursor.execute("""
+                    SELECT SUM(count) FROM nothing WHERE user_id = ?
+                """, (user_id,))
+        nothing_total = cursor.fetchone()[0] or 0
+
         # Пиво
         # За сегодня
         cursor.execute("""
@@ -213,6 +267,7 @@ class FitnessBot:
 
         return {
             'pushups': {'today': pushups_today, 'week': pushups_week, 'total': pushups_total},
+            'nothing': {'today': nothing_today, 'week': nothing_week, 'total': nothing_total},
             'beer': {'today': beer_today, 'week': beer_week, 'total': beer_total}
         }
 
@@ -226,6 +281,8 @@ class FitnessBot:
         cursor.execute("""
             SELECT DISTINCT user_id, username FROM (
                 SELECT user_id, username FROM pushups
+                UNION
+                SELECT user_id, username FROM nothing
                 UNION
                 SELECT user_id, username FROM beer
             )
@@ -257,6 +314,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Доступные команды:
 • /pushup <число> - записать отжимания
 • /beer <число> - записать количество мл. пива
+•/nothing <число> - записать ничего
 • /stats - моя статистика
 • /total - статистика всех пользователей
 
@@ -303,6 +361,7 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📊 Статистика за день и неделю:
 🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
+👑 Ни-Че-Го: {stats['nothing']['today']} сегодня | {stats['nothing']['week']} за неделю
 🍺 Пиво: {stats['beer']['today']} мл. сегодня | {stats['beer']['week']} мл. за неделю
         """
 
@@ -317,6 +376,58 @@ async def pushup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Неверный формат! Введите число.\nПример: /pushup 50")
     except Exception as e:
         logger.error(f"Error in pushup_command: {e}")
+        await update.message.reply_text("❌ Произошла ошибка при записи данных.")
+
+
+async def nothing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /nothing для записи отжиманий"""
+    try:
+        if not context.args:
+            await update.message.reply_text("❌ Укажите количество ничего!\nПример: /pushup 50")
+            return
+
+        count = int(context.args[0])
+        if count < 0:
+            await update.message.reply_text("❌ Ничего не может быть отрицательным числом!")
+            return
+        if count == 0:
+            await update.message.reply_text("❌ Ничего должно быть больше нуля!")
+            return
+        if count > 10000:
+            await update.message.reply_text("❌ Ничего большое ! не хуей !!Максимум 10000 за раз.")
+            return
+
+        user_id = update.effective_user.id
+        username = update.effective_user.username
+
+        bot.add_nothing(user_id, username, count)
+
+        # Получаем обновленную статистику
+        stats = bot.get_user_stats(user_id)
+
+        # Проверяем достижения
+        new_achievements = bot.check_and_add_achievement(user_id, username, 'nothing', stats['nothing']['total'])
+
+        response = f"""
+✅ Записано {count} Нихуя!
+
+📊 Статистика за день и неделю:
+🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
+👑 Ни-Че-Го: {stats['nothing']['today']} сегодня | {stats['nothing']['week']} за неделю
+🍺 Пиво: {stats['beer']['today']} мл. сегодня | {stats['beer']['week']} мл. за неделю
+        """
+
+        await update.message.reply_text(response)
+
+        # Отправляем сообщения о новых достижениях
+        for achievement in new_achievements:
+            achievement_message = bot.get_achievement_message('nothing', achievement)
+            await update.message.reply_text(achievement_message)
+
+    except ValueError:
+        await update.message.reply_text("❌ Неверный формат! Введите число.\nПример: /nothing 50")
+    except Exception as e:
+        logger.error(f"Error in nothing_command: {e}")
         await update.message.reply_text("❌ Произошла ошибка при записи данных.")
 
 
@@ -354,6 +465,7 @@ async def beer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📊 Статистика за день и неделю:
 🔥 Отжимания: {stats['pushups']['today']} сегодня | {stats['pushups']['week']} за неделю
+👑 Ни-Че-Го: {stats['nothing']['today']} сегодня | {stats['nothing']['week']} за неделю
 🍺 Пиво: {stats['beer']['today']} мл. сегодня | {stats['beer']['week']} мл. за неделю
         """
 
@@ -384,6 +496,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
   • Сегодня: {stats['pushups']['today']}
   • За неделю: {stats['pushups']['week']}
   • Всего: {stats['pushups']['total']}
+
+
+👑 Ни-Че-Го: 
+  • Сегодня: {stats['nothing']['today']}
+  • За неделю: {stats['nothing']['week']}
+  • Всего: {stats['nothing']['total']}
+
 
 🍺 Пиво:
   • Сегодня: {stats['beer']['today']} мл.
@@ -418,6 +537,7 @@ async def total_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             response += f"{i}. @{username}\n"
             response += f"   🔥 Отжимания: {stats['pushups']['total']} (неделя: {stats['pushups']['week']}, сегодня: {stats['pushups']['today']})\n"
+            response += f"   👑 Ни - Че - Го: {stats['nothing']['total']} (неделя: {stats['nothing']['week']}, сегодня: {stats['nothing']['today']})\n"
             response += f"   🍺 Пиво: {stats['beer']['total']} мл. (неделя: {stats['beer']['week']} мл., сегодня: {stats['beer']['today']} мл.)\n\n"
 
         # Разбиваем длинное сообщение на части, если необходимо
@@ -443,9 +563,11 @@ async def handle_unknown_command(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     # Проверяем команды без аргументов
-    if command.strip() in ["/pushup", "/beer"]:
+    if command.strip() in ["/pushup", "/nothing", "/beer"]:
         if command.strip() == "/pushup":
             await update.message.reply_text("❌ Укажите количество отжиманий!\nПример: /pushup 50")
+        if command.strip() == "/nothing":
+            await update.message.reply_text("❌ Укажите НИХУЯ!\nПример: /nothing 50")
         elif command.strip() == "/beer":
             await update.message.reply_text("❌ Укажите количество мл. пива!\nПример: /beer 2")
         return
@@ -456,6 +578,7 @@ async def handle_unknown_command(update: Update, context: ContextTypes.DEFAULT_T
         "Доступные команды:\n"
         "• /pushup <число> - записать отжимания\n"
         "• /beer <число> - записать пиво\n"
+        "• /тщерштп <число> - записать НИЧЕГО\n"
         "• /stats - моя статистика\n"
         "• /total - общая статистика\n"
         "• /start - справка"
@@ -471,6 +594,7 @@ def main():
         # Добавляем обработчики команд
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("pushup", pushup_command))
+        application.add_handler(CommandHandler("nothing", nothing_command))
         application.add_handler(CommandHandler("beer", beer_command))
         application.add_handler(CommandHandler("stats", stats_command))
         application.add_handler(CommandHandler("total", total_command))
@@ -479,7 +603,7 @@ def main():
         application.add_handler(MessageHandler(filters.COMMAND, handle_unknown_command))
 
         # Запускаем бота
-        logger.info("🤖 Фитнес-бот запущен и работает на Railway!")
+        logger.info("🤖 МОЙ -бот запущен и работает !")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     except Exception as e:
