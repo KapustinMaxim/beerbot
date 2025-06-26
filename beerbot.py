@@ -60,7 +60,7 @@ class FitnessBot:
 
         # Создание таблицы для мл. ничего
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS nothing (
+            CREATE TABLE IF NOT EXISTS nothin (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 username TEXT,
@@ -115,7 +115,7 @@ class FitnessBot:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO nothing (user_id, username, count) VALUES (?, ?, ?)",
+            "INSERT INTO nothin (user_id, username, count) VALUES (?, ?, ?)",
             (user_id, username, count)
         )
         conn.commit()
@@ -224,21 +224,21 @@ class FitnessBot:
         # Ничего
         # За сегодня
         cursor.execute("""
-                    SELECT SUM(count) FROM nothing 
+                    SELECT SUM(count) FROM nothin 
                     WHERE user_id = ? AND DATE(timestamp) = DATE('now')
                 """, (user_id,))
         nothing_today = cursor.fetchone()[0] or 0
 
         # За неделю
         cursor.execute("""
-                    SELECT SUM(count) FROM nothing 
+                    SELECT SUM(count) FROM nothin 
                     WHERE user_id = ? AND timestamp >= ?
                 """, (user_id, week_ago))
         nothing_week = cursor.fetchone()[0] or 0
 
         # Всего
         cursor.execute("""
-                    SELECT SUM(count) FROM nothing WHERE user_id = ?
+                    SELECT SUM(count) FROM nothin WHERE user_id = ?
                 """, (user_id,))
         nothing_total = cursor.fetchone()[0] or 0
 
@@ -282,7 +282,7 @@ class FitnessBot:
             SELECT DISTINCT user_id, username FROM (
                 SELECT user_id, username FROM pushups
                 UNION
-                SELECT user_id, username FROM nothing
+                SELECT user_id, username FROM nothin
                 UNION
                 SELECT user_id, username FROM beer
             )
@@ -314,7 +314,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Доступные команды:
 • /pushup <число> - записать отжимания
 • /beer <число> - записать количество мл. пива
-•/nothing <число> - записать ничего
+• /nothing <число> - записать ничего
 • /stats - моя статистика
 • /total - статистика всех пользователей
 
