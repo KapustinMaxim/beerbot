@@ -107,6 +107,18 @@ class FitnessBot:
 
         return week_start, week_end
 
+    def get_moth_start_end(self):
+        """Получение начала и конца календарной недели"""
+        now = datetime.now()
+        weekday = now.weekday()
+
+        week_start = now - timedelta(days=weekday)
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+
+        return week_start, week_end
+
     def init_database(self):
         """Автоматическая инициализация таблиц для всех активностей"""
         conn = sqlite3.connect(self.db_path)
@@ -284,7 +296,7 @@ class FitnessBot:
 bot = FitnessBot()
 
 
-async def create_activity_handler(activity_type: str):
+def create_activity_handler(activity_type: str):
     """Фабрика для создания обработчиков команд активностей"""
     config = ACTIVITIES[activity_type]
 
@@ -358,7 +370,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📅 Статистика за неделю считается с понедельника по воскресенье
 
-Пример: /pushup 50
+Пример: /pushups 50
     """
     await update.message.reply_text(welcome_text)
 
