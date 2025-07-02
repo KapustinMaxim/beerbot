@@ -92,7 +92,7 @@ ACTIVITIES = {
     },
     'pullup': {
         'table': 'pullups',
-        'emoji': '🔥',
+        'emoji': '🦾',
         'unit': '',
         'name': 'Подтягивания',
         'name_gen': 'Подтягиваний',
