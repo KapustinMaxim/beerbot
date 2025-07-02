@@ -23,7 +23,7 @@ if not BOT_TOKEN:
 
 # Конфигурация активностей - здесь легко добавлять новые
 ACTIVITIES = {
-    'pushups': {
+    'pushup': {
         'table': 'pushups',
         'emoji': '🔥',
         'unit': '',
@@ -370,7 +370,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📅 Статистика за неделю считается с понедельника по воскресенье
 
-Пример: /pushups 50
+Пример: /pushup 50
     """
     await update.message.reply_text(welcome_text)
 
@@ -398,7 +398,7 @@ async def total_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = "📊 Общая статистика всех пользователей:\n📅 Неделя: с понедельника по воскресенье\n\n"
 
         # Сортируем по отжиманиям (можно изменить критерий)
-        all_stats.sort(key=lambda x: x['stats']['pushups']['total'], reverse=True)
+        all_stats.sort(key=lambda x: x['stats']['pushup']['total'], reverse=True)
 
         for i, user_data in enumerate(all_stats, 1):
             username = user_data['username']
